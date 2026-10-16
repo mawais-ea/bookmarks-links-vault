@@ -1,0 +1,20 @@
+# Self-host on a VPS: `docker compose up -d`, then put a TLS proxy (Caddy, Traefik) in front.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: linkvault
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: linkvault
+    volumes: [pgdata:/var/lib/postgresql/data]
+    restart: unless-stopped
+  api:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://linkvault:${POSTGRES_PASSWORD:-change-me}@db:5432/linkvault
+    ports: ["8000:8000"]
+    depends_on: [db]
+    restart: unless-stopped
+volumes:
+  pgdata:

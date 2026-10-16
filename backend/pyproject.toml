@@ -1,0 +1,36 @@
+[project]
+name = "linkvault-backend"
+version = "0.1.0"
+description = "LinkVault API: saves shared links, extracts metadata, categorizes them."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "pydantic-settings>=2.4",
+    "httpx>=0.27",
+    "selectolax>=1.0",
+    "anthropic>=1.0",
+    "pyjwt>=2.9",
+    "yt-dlp>=2024.10",
+    "trafilatura>=1.12",
+    "python-multipart>=0.0.9",
+    "pillow>=10",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2"]
+# Speech-to-text for videos that have no captions (runs locally, CPU is fine).
+transcribe = ["faster-whisper>=1.2", "numpy>=2"]
+# Read text in screenshots without Claude (local OCR).
+ocr = ["rapidocr-onnxruntime>=1.3"]
+# Read iPhone HEIC photos. Windows Smart App Control may block its DLL; screenshots (PNG) don't need it.
+heic = ["pillow-heif>=0.18"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.21"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.setuptools]
+packages = ["app", "app.routers", "app.services"]

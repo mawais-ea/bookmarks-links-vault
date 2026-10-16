@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Save to LinkVault",
+  "version": "0.1.0",
+  "description": "Save the current page or any link to LinkVault.",
+  "permissions": ["activeTab", "contextMenus", "storage", "notifications"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Save to LinkVault" },
+  "options_page": "options.html",
+  "commands": {
+    "_execute_action": { "suggested_key": { "default": "Ctrl+Shift+S" } }
+  }
+}
