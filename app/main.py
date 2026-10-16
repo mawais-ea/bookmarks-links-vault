@@ -59,6 +59,11 @@ class LinkVaultApp:
         self.sharer = ft.Share()
         self.storage = ft.StoragePaths()
         self.file_picker = ft.FilePicker()
+        # After every event Flet removes services that look unreferenced, and on Python 3.12 one
+        # attribute isn't enough: the phone then loses e.g. the link opener ("Timeout waiting for
+        # invoke method listener"). A second reference keeps them for the whole session.
+        self._keep_services = [s for s in (getattr(self, "prefs", None), self.clipboard, self.launcher,
+                                           self.sharer, self.storage, self.file_picker) if s is not None]
         self._watch_task: asyncio.Task | None = None
         self.clip_watch = ClipboardWatcher(self.db.get, self.db.set)
 
