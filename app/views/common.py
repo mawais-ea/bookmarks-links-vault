@@ -97,6 +97,8 @@ def bookmark_menu(app: "LinkVaultApp", bm: dict, icon_color=None, bgcolor=None) 
             ft.PopupMenuItem(content="Unfavorite" if bm.get("is_favorite") else "Favorite",
                              icon=ft.Icons.STAR_BORDER,
                              on_click=lambda: app.run(app.update_bookmark(bm["id"], is_favorite=not bm.get("is_favorite")))),
+            ft.PopupMenuItem(content="Rename", icon=ft.Icons.DRIVE_FILE_RENAME_OUTLINE,
+                             on_click=lambda: rename_dialog(app, bm)),
             ft.PopupMenuItem(content="Move to…", icon=ft.Icons.DRIVE_FILE_MOVE,
                              on_click=lambda: show_move_dialog(app, bm)),
             ft.PopupMenuItem(content="Copy text", icon=ft.Icons.CONTENT_COPY,
@@ -146,8 +148,8 @@ def bookmark_card(app: "LinkVaultApp", bm: dict, show_category: bool = True) -> 
     )
 
 
-def mini_card(app: "LinkVaultApp", bm: dict) -> ft.Control:
-    """Compact card for the horizontal 'Recent' strip, with the same ⋮ menu as list cards."""
+def mini_card(app: "LinkVaultApp", bm: dict, grid: bool = False, width: float | None = None) -> ft.Container:
+    """Compact card for the Recent strip and thumbnail grids, with the same ⋮ menu as list cards."""
     is_local = bm["id"] < 0
     picture: ft.Control = thumbnail(bm.get("thumbnail_url"), bm["platform"], size=150)
     if not is_local:
@@ -168,8 +170,10 @@ def mini_card(app: "LinkVaultApp", bm: dict) -> ft.Control:
     if bm.get("recipe"):
         meta.append(ft.Icon(ft.Icons.RESTAURANT_MENU, size=13))
     return ft.Container(
-        width=150, ink=True, border_radius=12,
-        padding=ft.Padding.only(bottom=16),  # room for the strip's scrollbar under the title
+        width=width or (None if grid else 150), ink=True, border_radius=12,
+        border=ft.Border.all(2, ft.Colors.TRANSPARENT),  # lit up when a card is dragged over it
+        # strip: room for its scrollbar under the title; grid: a little breathing space
+        padding=ft.Padding.all(6) if grid else ft.Padding.only(bottom=16),
         on_click=None if is_local else (lambda: app.go(f"/bookmark/{bm['id']}")),
         on_long_press=None if is_local else (lambda: show_move_dialog(app, bm)),
         content=ft.Column([
@@ -179,6 +183,31 @@ def mini_card(app: "LinkVaultApp", bm: dict) -> ft.Control:
                    spacing=4, vertical_alignment=ft.CrossAxisAlignment.START),
         ], spacing=4),
     )
+
+
+def rename_dialog(app: "LinkVaultApp", bm: dict) -> None:
+    """Give a saved link or screenshot a name of your own."""
+    name = ft.TextField(label="Name", value=bm.get("title") or "", autofocus=True, multiline=True, max_lines=4)
+    error = ft.Text(color=ft.Colors.ERROR, visible=False)
+
+    async def save():
+        new = " ".join((name.value or "").split())
+        if not new:
+            error.value, error.visible = "The name can't be empty", True
+            error.update()
+            return
+        app.page.pop_dialog()
+        if new != (bm.get("title") or ""):
+            await app.update_bookmark(bm["id"], title=new)
+            app.toast("Renamed")
+
+    name.on_submit = lambda: app.run(save())
+    app.page.show_dialog(ft.AlertDialog(
+        title=ft.Text("Rename"),
+        content=ft.Column([name, error], tight=True, width=380),
+        actions=[ft.TextButton("Cancel", on_click=lambda: app.page.pop_dialog()),
+                 ft.FilledButton("Save", on_click=lambda: app.run(save()))],
+    ))
 
 
 def show_move_dialog(app: "LinkVaultApp", bm: dict) -> None:

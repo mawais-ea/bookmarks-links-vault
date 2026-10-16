@@ -1,6 +1,7 @@
 """LinkVault app (Windows, Android, iOS) built with Flet."""
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -444,6 +445,41 @@ class LinkVaultApp:
         except ApiError as e:
             self.toast(f"Couldn't save the new order: {e.detail}")
             await self.do_sync(full=True)
+
+    def move_bookmark_onto(self, items: list[dict], source_id: int, target_id: int) -> None:
+        """Thumbnail grids: a card dropped onto another takes its place."""
+        ids = [b["id"] for b in items]
+        if source_id == target_id or source_id not in ids or target_id not in ids:
+            return
+        self.move_bookmark(items, ids.index(source_id), ids.index(target_id))
+
+    @property
+    def drag_affinity(self) -> ft.Axis | None:
+        """On phones a vertical swipe must still scroll, so dragging a tile starts with a sideways move."""
+        touch = self.page.platform in (ft.PagePlatform.IOS, ft.PagePlatform.ANDROID)
+        return ft.Axis.HORIZONTAL if touch else None
+
+    # ------------------------------------------------------------ thumbnail / list views
+
+    def view_for(self, route: str) -> str:
+        """Each screen (Recent "/", every category, Favorites, Archive) remembers its own view."""
+        try:
+            views = json.loads(self.db.get("views") or "{}")
+        except ValueError:
+            views = {}
+        if route == "/" and route not in views:
+            return self.db.get("recent_view", "thumbs")  # setting from before views were per screen
+        return views.get(route, "thumbs")
+
+    def set_view(self, route: str, mode: str) -> None:
+        try:
+            views = json.loads(self.db.get("views") or "{}")
+        except ValueError:
+            views = {}
+        views[route] = mode
+        self.db.set("views", json.dumps(views))
+        self._view_cache.clear()
+        self.refresh()
 
     def move_category(self, source_id: int, target_id: int) -> None:
         """Category tile dropped onto another tile: it takes that tile's place."""

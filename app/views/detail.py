@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from .common import PLATFORM_NAMES, empty_state, nice_date, platform_icon, resolve, status_badge
+from .common import PLATFORM_NAMES, empty_state, nice_date, platform_icon, rename_dialog, resolve, status_badge
 
 if TYPE_CHECKING:
     from main import LinkVaultApp
@@ -181,7 +181,7 @@ def build(app: "LinkVaultApp", route: str) -> ft.View:
                        controls=[empty_state(ft.Icons.LINK_OFF, "This bookmark was deleted.")])
 
     # Full width, and no max_lines: the boxes grow so the whole text is always visible.
-    title = ft.TextField(label="Title", value=bm.get("title") or "", multiline=True, max_lines=None)
+    title = ft.TextField(label="Name", value=bm.get("title") or "", multiline=True, max_lines=None)
     description = ft.TextField(label="Description", value=bm.get("description") or "", multiline=True,
                                min_lines=2, max_lines=None)
     note = ft.TextField(label="Your note", value=bm.get("note") or "", multiline=True, min_lines=2, max_lines=None)
@@ -240,6 +240,8 @@ def build(app: "LinkVaultApp", route: str) -> ft.View:
         appbar=ft.AppBar(
             title=ft.Text("Bookmark"),
             actions=[
+                ft.IconButton(ft.Icons.DRIVE_FILE_RENAME_OUTLINE, tooltip="Rename",
+                              on_click=lambda: rename_dialog(app, bm)),
                 ft.IconButton(ft.Icons.STAR if is_fav else ft.Icons.STAR_BORDER, tooltip="Favorite",
                               icon_color=ft.Colors.AMBER if is_fav else None,
                               on_click=lambda: app.run(app.update_bookmark(bm_id, is_favorite=not is_fav))),

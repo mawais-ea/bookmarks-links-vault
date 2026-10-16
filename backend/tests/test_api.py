@@ -68,6 +68,14 @@ def test_accept_suggested_category_creates_it(client, fake_extract):
     assert "Gardening" in _cats(client)
 
 
+def test_rename(client, fake_extract):
+    bm = client.post("/bookmarks", json={"url": "https://plants.example/tomatoes"}).json()
+    r = client.patch(f"/bookmarks/{bm['id']}", json={"title": "  My   tomato notes "})
+    assert r.json()["title"] == "My tomato notes"
+    assert client.patch(f"/bookmarks/{bm['id']}", json={"title": "   "}).status_code == 422
+    assert client.get(f"/bookmarks/{bm['id']}").json()["title"] == "My tomato notes"
+
+
 def test_search_and_filters(client, fake_extract):
     fake_extract["a.example"] = Metadata(title="Sourdough guide", raw_text="starter, flour, water")
     fake_extract["b.example"] = Metadata(title="Leg day", raw_text="squats")

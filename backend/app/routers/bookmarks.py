@@ -191,6 +191,10 @@ def update_bookmark(bookmark_id: int, body: BookmarkPatch, tasks: BackgroundTask
         if is_recipe_category(new_cat) and not bm.recipe and bm.platform != "screenshot":
             bm.recipe_source = "processing"
             tasks.add_task(find_recipe, bm.id)
+    if "title" in data:  # rename
+        data["title"] = " ".join((data["title"] or "").split())
+        if not data["title"]:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "The name can't be empty")
     for key, value in data.items():
         setattr(bm, key, value)
     if data.get("needs_review") is False:

@@ -95,23 +95,45 @@ def section_header(title: str, *actions: ft.Control) -> ft.Control:
                   vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
 
-def recent_view_switch(app: "LinkVaultApp") -> ft.Control:
-    mode = app.db.get("recent_view", "thumbs")
-
-    def pick(new_mode: str):
-        def handler():
-            app.db.set("recent_view", new_mode)  # remembered across restarts
-            app.refresh()
-        return handler
+def view_switch(app: "LinkVaultApp", route: str) -> ft.Control:
+    """Thumbnails / list toggle for one screen; Recent and every category remember their own."""
+    mode = app.view_for(route)
 
     def button(icon, value, tip):
         on = mode == value
-        return ft.IconButton(icon, tooltip=tip, on_click=pick(value),
+        return ft.IconButton(icon, tooltip=tip, on_click=lambda: app.set_view(route, value),
                              icon_color=ft.Colors.PRIMARY if on else ft.Colors.ON_SURFACE_VARIANT,
                              bgcolor=ft.Colors.with_opacity(0.12, ft.Colors.PRIMARY) if on else None)
 
     return ft.Row([button(ft.Icons.GRID_VIEW, "thumbs", "Thumbnail view"),
                    button(ft.Icons.VIEW_LIST, "list", "List view")], spacing=0)
+
+
+def thumb_grid(app: "LinkVaultApp", items: list[dict]) -> ft.Control:
+    """Thumbnail grid for a category; drop a card onto another to move it there."""
+    def cell(b: dict) -> ft.Control:
+        tile = mini_card(app, b, grid=True)
+
+        def lit(on: bool):
+            tile.border = ft.Border.all(2, ft.Colors.PRIMARY if on else ft.Colors.TRANSPARENT)
+            tile.update()
+
+        def accept(e):
+            lit(False)
+            source = e.src if getattr(e, "src", None) is not None else app.page.get_control(e.src_id)
+            app.move_bookmark_onto(items, int(source.data), b["id"])
+
+        return ft.DragTarget(
+            group="bookmark", col={"xs": 6, "sm": 4, "md": 3, "lg": 2}, data=b["id"],
+            on_will_accept=lambda e: lit(bool(e.accept)), on_leave=lambda e: lit(False), on_accept=accept,
+            content=ft.Draggable(
+                group="bookmark", data=b["id"], content=tile, affinity=app.drag_affinity,
+                content_when_dragging=ft.Container(height=180, border_radius=12,
+                                                   border=ft.Border.all(2, ft.Colors.OUTLINE_VARIANT)),
+                content_feedback=ft.Container(mini_card(app, b, grid=True, width=160), opacity=0.9)),
+        )
+
+    return ft.ResponsiveRow([cell(b) for b in items], spacing=12, run_spacing=12)
 
 
 def reorderable(app: "LinkVaultApp", items: list[dict], make, **kwargs) -> ft.ReorderableListView:
@@ -128,7 +150,7 @@ def reorderable(app: "LinkVaultApp", items: list[dict], make, **kwargs) -> ft.Re
 def build(app: "LinkVaultApp") -> ft.View:
     recent = app.db.bookmarks(limit=12)
     cats = app.db.categories()  # in the order you arranged them
-    list_mode = app.db.get("recent_view", "thumbs") == "list"
+    list_mode = app.view_for("/") == "list"
 
     top: list[ft.Control] = [paste_box(app)]
     middle: ft.Control | None = None
@@ -138,7 +160,7 @@ def build(app: "LinkVaultApp") -> ft.View:
             "Nothing saved yet.\nShare a link to LinkVault from any app, or paste one above.",
         ))
     else:
-        top.append(section_header("Recent", recent_view_switch(app)))
+        top.append(section_header("Recent", view_switch(app, "/")))
         if not list_mode:
             middle = reorderable(app, recent, lambda b: ft.Container(mini_card(app, b), margin=ft.Margin.only(right=12)),
                                  horizontal=True, height=240)
@@ -176,7 +198,7 @@ def build(app: "LinkVaultApp") -> ft.View:
 
 
 def build_list(app: "LinkVaultApp", route: str) -> ft.View:
-    """Category, favorites and archive lists share one layout; cards can be dragged to reorder."""
+    """Category, Favorites and Archive: thumbnails or list (each screen its own), drag to reorder in both."""
     if route == "/favorites":
         title, items, show_cat = "Favorites", app.db.bookmarks(favorite=True), True
     elif route == "/archive":
@@ -186,10 +208,16 @@ def build_list(app: "LinkVaultApp", route: str) -> ft.View:
         cat = app.db.category(cat_id) or {"name": "Category"}
         title, items, show_cat = cat["name"], app.db.bookmarks(category_id=cat_id), False
 
-    appbar = ft.AppBar(title=ft.Text(title), actions=[app.sync_button()])
+    appbar = ft.AppBar(title=ft.Text(title), actions=[view_switch(app, route), app.sync_button()])
     if not items:
         return ft.View(route=route, appbar=appbar, padding=12,
                        controls=[empty_state(ft.Icons.INBOX, "No links here yet.")])
+    if app.view_for(route) == "thumbs":
+        return ft.View(route=route, appbar=appbar, scroll=ft.ScrollMode.ALWAYS,
+                       padding=ft.Padding.only(left=12, top=12, right=22, bottom=24), controls=[
+                           ft.Text("Drag a card onto another to move it there.", size=12,
+                                   color=ft.Colors.ON_SURFACE_VARIANT),
+                           thumb_grid(app, items)])
     return ft.View(
         route=route, appbar=appbar, padding=ft.Padding.only(left=12, top=12, right=12, bottom=0),
         controls=[reorderable(app, items, lambda b: bookmark_card(app, b, show_category=show_cat), expand=True,
