@@ -1,3 +1,4 @@
+import re
 import time
 from datetime import datetime, timezone
 
@@ -86,10 +87,22 @@ async def upload_with_key(key: str, request: Request, tasks: BackgroundTasks, db
 
 
 @router.get("/files/{user_id}/{name}", include_in_schema=False)
-def get_file(user_id: int, name: str, sig: str = Query("")):
+def get_file(user_id: int, name: str, sig: str = Query(""), download: bool = False, db: Session = Depends(get_db)):
     if "/" in name or "\\" in name or ".." in name or not shots.verify(user_id, name, sig):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
     path = shots.file_path(user_id, name)
     if not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
-    return FileResponse(path, headers={"Cache-Control": "private, max-age=31536000, immutable"})
+    headers = {"Cache-Control": "private, max-age=31536000, immutable"}
+    if not download:
+        return FileResponse(path, headers=headers)
+    # ?download=1: save it as a file, named after the screenshot's title.
+    bm = db.scalar(select(Bookmark).where(Bookmark.user_id == user_id, Bookmark.file_name == name))
+    return FileResponse(path, headers=headers, filename=download_name(bm.title if bm else None, name))
+
+
+def download_name(title: str | None, stored: str) -> str:
+    ext = stored.rsplit(".", 1)[-1].lower()
+    base = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', " ", title or "")
+    base = " ".join(base.split()).strip(" .")[:100] or "Screenshot"
+    return f"{base}.{ext}"

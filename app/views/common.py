@@ -18,6 +18,12 @@ def resolve(url: str | None) -> str | None:
     return url
 
 
+def download_url(bm: dict) -> str:
+    """A screenshot's image as a file to save (the server names it after the title)."""
+    url = resolve(bm["url"]) or ""
+    return url + ("&" if "?" in url else "?") + "download=1"
+
+
 PLATFORM_ICONS = {
     "screenshot": ft.Icons.SCREENSHOT_MONITOR,
     "youtube": ft.Icons.SMART_DISPLAY, "instagram": ft.Icons.PHOTO_CAMERA, "tiktok": ft.Icons.MUSIC_NOTE,
@@ -101,6 +107,9 @@ def bookmark_menu(app: "LinkVaultApp", bm: dict, icon_color=None, bgcolor=None) 
                              on_click=lambda: rename_dialog(app, bm)),
             ft.PopupMenuItem(content="Move to…", icon=ft.Icons.DRIVE_FILE_MOVE,
                              on_click=lambda: show_move_dialog(app, bm)),
+            *([ft.PopupMenuItem(content="Download", icon=ft.Icons.DOWNLOAD,
+                                on_click=lambda: app.open_url(download_url(bm)))]
+              if bm["platform"] == "screenshot" else []),
             ft.PopupMenuItem(content="Copy text", icon=ft.Icons.CONTENT_COPY,
                              on_click=lambda: app.run(app.copy(bm.get("raw_text") or "", "Text copied")))
             if bm["platform"] == "screenshot" else

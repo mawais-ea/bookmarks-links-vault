@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import flet as ft
 
-from .common import PLATFORM_NAMES, empty_state, nice_date, platform_icon, rename_dialog, resolve, status_badge
+from .common import PLATFORM_NAMES, download_url, empty_state, nice_date, platform_icon, rename_dialog, resolve, status_badge
 
 if TYPE_CHECKING:
     from main import LinkVaultApp
@@ -227,6 +227,7 @@ def build(app: "LinkVaultApp", route: str) -> ft.View:
     if is_shot:
         actions = ft.Row([
             ft.FilledButton("Open image", icon=ft.Icons.OPEN_IN_NEW, on_click=lambda: app.open_url(resolve(bm["url"]))),
+            ft.OutlinedButton("Download", icon=ft.Icons.DOWNLOAD, on_click=lambda: app.open_url(download_url(bm))),
         ], wrap=True)
     else:
         actions = ft.Row([

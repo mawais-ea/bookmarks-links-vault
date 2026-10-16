@@ -32,6 +32,16 @@ def test_upload_goes_to_screenshots_category(client, monkeypatch):
     assert client.get(bm["thumbnail_url"].split("?")[0] + "?sig=wrong").status_code == 404
 
 
+def test_download_is_named_after_the_title(client, monkeypatch):
+    monkeypatch.setattr(screenshots, "read_text_locally", lambda p: None)
+    bm = upload(client).json()
+    client.patch(f"/bookmarks/{bm['id']}", json={"title": "Flight: LHE/DXB"})
+    r = client.get(bm["url"] + "&download=1", headers={"Authorization": ""})
+    assert r.status_code == 200 and r.content.startswith(b"\x89PNG")
+    assert r.headers["content-disposition"] == "attachment; filename*=utf-8''Flight%20LHE%20DXB.png"
+    assert "content-disposition" not in client.get(bm["url"]).headers  # shown in the app, not saved
+
+
 def test_same_image_twice_is_one_bookmark(client, monkeypatch):
     monkeypatch.setattr(screenshots, "read_text_locally", lambda p: None)
     data = make_png()
